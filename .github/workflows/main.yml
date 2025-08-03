@@ -238,41 +238,6 @@ jobs:
             echo "CONFIG_LOCALVERSION=\"$LOCALVERSION\"" >> arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
           fi
 
-      - name: "🛠 Setup kernel Tweaks"
-        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
-        run: |
-          set -e
-
-          log() {
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
-          }
-
-          apply_patch() {
-            local patch="$1"
-            local error_msg="$2"
-
-            log "Attempting to apply patch: $(basename "$patch")"
-
-            if ! patch -p1 < "$patch"; then
-              log "Warning: Some hunks failed while applying patch $(basename "$patch")"
-            fi
-          }
-          PATCH_URL="https://raw.githubusercontent.com/topnotchfreaks/kernel_patches/main/0001-fs-lineageos-disguise.patch"
-          PATCH_FILE="0001-fs-lineageos-disguise.patch"
-
-          log "Downloading patch from $PATCH_URL"
-
-          curl -L -o "$PATCH_FILE" "$PATCH_URL"
-
-          if [ ! -f "$PATCH_FILE" ]; then
-            log "Patch file $PATCH_FILE does not exist after download"
-            exit 1
-          fi
-
-          apply_patch "$PATCH_FILE"
-
-          log "✅ Patch applied successfully"
-
       - name: "📝 Append custom Makefile line"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         run: |
@@ -280,6 +245,7 @@ jobs:
             echo "Using TopNotchFreaks Clang - no additional flags needed"
           else
             echo 'KBUILD_CFLAGS += -Wno-default-const-init-unsafe' >> Makefile
+            echo 'KBUILD_CFLAGS += -Wno-unused-variable' >> Makefile  # Tambahkan baris ini
             echo "Custom Makefile line added successfully"
           fi
 
@@ -319,6 +285,13 @@ jobs:
         with:
           name: noksu-kernel
           path: ${{ env.kernelDir }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image.noksu
+          retention-days: 1
+
+      - name: "📤 Upload moduls artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: jiang-night-module
+          path: ${{ env.kernelDir }}/${{ env.OUT_DIR }}/drivers/kamid/jiang_night.ko
           retention-days: 1
 
   Build-KSU-Kernel:
@@ -500,41 +473,6 @@ jobs:
             echo "CONFIG_LOCALVERSION=\"$LOCALVERSION\"" >> arch/arm64/configs/${{ env.DEFCONFIG_NAME }}
           fi
 
-      - name: "🛠 Setup kernel Tweaks"
-        working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
-        run: |
-          set -e
-
-          log() {
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
-          }
-
-          apply_patch() {
-            local patch="$1"
-            local error_msg="$2"
-
-            log "Attempting to apply patch: $(basename "$patch")"
-
-            if ! patch -p1 < "$patch"; then
-              log "Warning: Some hunks failed while applying patch $(basename "$patch")"
-            fi
-          }
-          PATCH_URL="https://raw.githubusercontent.com/topnotchfreaks/kernel_patches/main/0001-fs-lineageos-disguise.patch"
-          PATCH_FILE="0001-fs-lineageos-disguise.patch"
-
-          log "Downloading patch from $PATCH_URL"
-
-          curl -L -o "$PATCH_FILE" "$PATCH_URL"
-
-          if [ ! -f "$PATCH_FILE" ]; then
-            log "Patch file $PATCH_FILE does not exist after download"
-            exit 1
-          fi
-
-          apply_patch "$PATCH_FILE"
-
-          log "✅ Patch applied successfully"
-
       - name: "😋 Update KernelSU Version"
         working-directory: ./${{ env.kernelDir }}/${{ env.kernelName }}
         run: |
@@ -673,6 +611,7 @@ jobs:
             echo "Using TopNotchFreaks Clang - no additional flags needed"
           else
             echo 'KBUILD_CFLAGS += -Wno-default-const-init-unsafe' >> Makefile
+            echo 'KBUILD_CFLAGS += -Wno-unused-variable' >> Makefile  # Tambahkan baris ini
             echo "Custom Makefile line added successfully"
           fi
 
@@ -723,6 +662,13 @@ jobs:
         with:
           name: ksu-kernel
           path: ${{ env.kernelDir }}/${{ env.OUT_DIR }}/arch/arm64/boot/Image.ksu
+          retention-days: 1
+      
+      - name: "📤 Upload moduls artifact"
+        uses: actions/upload-artifact@v4
+        with:
+          name: jiang-night-module
+          path: ${{ env.kernelDir }}/${{ env.OUT_DIR }}/drivers/kamid/jiang_night.ko
           retention-days: 1
 
   Package-Kernels:
