@@ -1,5 +1,5 @@
 #include <linux/module.h>
-#include <linux/miscdevice.hh>
+#include <linux/miscdevice.h>
 #include <linux/capability.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -112,6 +112,6 @@ void __exit driver_unload(void) {
 
 module_init(driver_entry);
 module_exit(driver_unload);
-MODULE_DESCRIPTION("Linux Kernel.");
+MODULE_DESCRIPTION("Secure and Compatible Memory Access Driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("kamid");
