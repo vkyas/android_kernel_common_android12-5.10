@@ -1,5 +1,5 @@
 #include <linux/module.h>
-#include <linux/miscdevice.h>
+#include <linux/miscdevice.hh>
 #include <linux/capability.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -11,14 +11,28 @@
 #define DEVICE_NAME "kamid"
 
 static const char g_secret_key[] = "O4K48z4LOz7WwslW";
-static bool g_is_verified = false;
 
-bool is_driver_verified(void) {
-    return g_is_verified;
+typedef struct _KAMID_FILE_DATA {
+    bool is_verified;
+} KAMID_FILE_DATA;
+
+int dispatch_open(struct inode *node, struct file *file) {
+    KAMID_FILE_DATA *data = kmalloc(sizeof(KAMID_FILE_DATA), GFP_KERNEL);
+    if (!data) {
+        return -ENOMEM;
+    }
+    data->is_verified = false;
+    file->private_data = data;
+    return 0;
 }
 
-int dispatch_open(struct inode *node, struct file *file) { return 0; }
-int dispatch_close(struct inode *node, struct file *file) { return 0; }
+int dispatch_close(struct inode *node, struct file *file) {
+    if (file->private_data) {
+        kfree(file->private_data);
+        file->private_data = NULL;
+    }
+    return 0;
+}
 
 long handle_module_base(unsigned long arg) {
     MODULE_BASE mb;
@@ -32,10 +46,11 @@ long handle_module_base(unsigned long arg) {
 }
 
 long dispatch_ioctl(struct file *const file, unsigned int const cmd, unsigned long const arg) {
-    if (!capable(CAP_SYS_ADMIN)) return -EPERM;
+    KAMID_FILE_DATA *data = (KAMID_FILE_DATA *)file->private_data;
 
-    if (cmd != OP_INIT_KEY && !g_is_verified) {
-        printk(KERN_WARNING "[+] Driver kamid: Access denied. Not authenticated.\n");
+    if (!capable(CAP_SYS_ADMIN)) return -EPERM;
+    
+    if (cmd != OP_INIT_KEY && !data->is_verified) {
         return -EPERM;
     }
 
@@ -43,12 +58,11 @@ long dispatch_ioctl(struct file *const file, unsigned int const cmd, unsigned lo
         case OP_INIT_KEY: {
             char user_key[sizeof(g_secret_key)];
             if (copy_from_user(user_key, (void __user *)arg, sizeof(user_key)) != 0) return -EFAULT;
+            
             if (strncmp(user_key, g_secret_key, sizeof(g_secret_key)) == 0) {
-                g_is_verified = true;
-                printk(KERN_INFO "[+] Driver kamid: Authentication successful.\n");
+                data->is_verified = true;
             } else {
-                g_is_verified = false;
-                printk(KERN_ERR "[+] Driver kamid: Authentication failed.\n");
+                data->is_verified = false;
                 return -EACCES;
             }
             break;
@@ -89,24 +103,15 @@ struct miscdevice misc = {
 };
 
 int __init driver_entry(void) {
-    int ret;
-    printk(KERN_INFO "[+] Driver kamid: Memuat...\n");
-    ret = misc_register(&misc);
-    if (ret) {
-        printk(KERN_ERR "[+] Driver kamid: Gagal mendaftarkan misc device, error %d\n", ret);
-    } else {
-        printk(KERN_INFO "[+] Driver kamid: Berhasil dimuat. Device: /dev/%s\n", DEVICE_NAME);
-    }
-    return ret;
+    return misc_register(&misc);
 }
 
 void __exit driver_unload(void) {
-    printk(KERN_INFO "[+] Driver kamid: Membongkar...\n");
     misc_deregister(&misc);
 }
 
 module_init(driver_entry);
 module_exit(driver_unload);
-MODULE_DESCRIPTION("Secure and Compatible Memory Access Driver");
+MODULE_DESCRIPTION("Linux Kernel.");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("kamid (Revised)");
+MODULE_AUTHOR("kamid");
