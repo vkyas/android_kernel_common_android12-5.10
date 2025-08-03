@@ -36,12 +36,12 @@ bool read_process_memory(pid_t pid, uintptr_t addr, void *buffer, size_t size)
     size = PAGE_SIZE - offset;
   }
 
-  kaddr = kmap_local_page(page);
+  kaddr = kmap(page);
   if (copy_to_user(buffer, kaddr + offset, size) == 0) {
     result = true;
   }
+  kunmap(kaddr);
 
-  kunmap_local(kaddr);
   unpin_user_page(page);
 
 unlock_and_release:
@@ -81,13 +81,13 @@ bool write_process_memory(pid_t pid, uintptr_t addr, void *buffer, size_t size)
     size = PAGE_SIZE - offset;
   }
 
-  kaddr = kmap_local_page(page);
+  kaddr = kmap(page);
   if (copy_from_user(kaddr + offset, buffer, size) == 0) {
     set_page_dirty(page);
     result = true;
   }
+  kunmap(kaddr);
 
-  kunmap_local(kaddr);
   unpin_user_page(page);
 
 unlock_and_release_write:
